@@ -35,4 +35,18 @@ router.post('/submit-review/:id',verifyToken, boardingController.submitReview);
 //Save Listing
 router.post('/save/:listingId',verifyToken, boardingController.saveListing);
 
+// Delete Saved Listing
+// Delete Saved Listing
+router.delete('/delete/:listingId', verifyToken, boardingController.deleteSavedListing);
+
+
+//get listings by user id
+router.get('/user-listings/:userId',verifyToken,boardingController.getListingsByUserId);
+
+//delete listing using listingId
+router.delete('/:listingId',verifyToken,boardingController.deleteListing);
+
+//get saved listings
+router.get('/saved/:userId',verifyToken,boardingController.getSavedListings)
+
 module.exports = router;

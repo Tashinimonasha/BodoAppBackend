@@ -6,6 +6,7 @@ const dotenv = require('dotenv');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const boardingRoutes = require('./routes/boardingRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
 
 dotenv.config();
 
@@ -20,6 +21,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/boarding', boardingRoutes); // Mounting the routes
+app.use('/api/review',reviewRoutes);
 
 // Error handling (always at the bottom)
 app.use((err, req, res, next) => {

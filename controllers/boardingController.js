@@ -19,7 +19,7 @@ const upload = multer({
 
 const addBoardingListing = async (req, res) => {
     try {
-        const { title, description, type, monthlyRent,district, location, phone } = req.body;
+        const { title, description, type, price,district, location, phone } = req.body;
         const userId = req.user.uid;  // This comes from the verifyToken middleware
         const images = req.files;  // Image files uploaded
 
@@ -34,7 +34,7 @@ const addBoardingListing = async (req, res) => {
             title,
             description,
             type,
-            monthlyRent,
+            price,
             district,
             location,
             phone,
@@ -156,22 +156,24 @@ const getBoardingListingById = async (req, res) => {
 };
 const submitReview = async (req, res) => {
     try {
-        const { listingId,rating, comment } = req.body;
+        const { listingId, rating, comment } = req.body;
         const userId = req.user.uid;
+        const userName =req.user.email;
 
         if (!rating || rating < 1 || rating > 5) {
             return res.status(400).json({ message: 'Rating must be between 1 and 5' });
         }
 
-        if (!comment || comment.trim().length === 0) {
-            return res.status(400).json({ message: 'Comment cannot be empty' });
+        if (comment && comment.trim().length === 0) {
+            return res.status(400).json({ message: 'Comment cannot be empty if provided' });
         }
 
         const reviewData = {
             userId,
             listingId,
+            userName,
             rating,
-            comment,
+            comment: comment || '',
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
         };
 
@@ -235,11 +237,155 @@ const saveListing = async (req, res) => {
         });
     }
 };
+const deleteSavedListing = async (req, res) => {
+    try {
+        const listingId = req.params.listingId;
+        const userId = req.user?.uid; // User ID from the token middleware
+        console.log(userId)
+        console.log(listingId);
+
+        if (!listingId) {
+            return res.status(400).json({ message: 'Listing ID is required' });
+        }
+
+        if (!userId) {
+            return res.status(401).json({ message: 'User not authenticated' });
+        }
+
+        // Query the Firestore collection to find the saved listing
+        const savedListingsRef = firestore.collection('saved_listings');
+        const savedListingQuery = await savedListingsRef
+            .where('listingId', '==', listingId)
+            .where('userId', '==', userId)
+            .get();
+
+        if (savedListingQuery.empty) {
+            return res.status(404).json({ message: 'Saved listing not found' });
+        }
+
+        // Delete all matching documents (if needed for cases of multiple saves per user-listing combination)
+        const batch = firestore.batch();
+        savedListingQuery.forEach((doc) => {
+            batch.delete(doc.ref);
+        });
+        await batch.commit();
+
+        res.status(200).json({ message: 'Saved listing deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting saved listing:', error);
+        res.status(500).json({
+            message: 'Error deleting saved listing',
+            error: error.message,
+        });
+    }
+};
+const getListingsByUserId = async (req, res) => {
+    try {
+        const { userId } = req.params; // Getting userId from URL parameter
+
+        // Querying Firestore for listings associated with the given userId
+        const listingsSnapshot = await firestore
+            .collection('listings')
+            .where('userId', '==', userId)
+            .get();
+
+        if (listingsSnapshot.empty) {
+            return res.status(404).json({ message: "No listings found for this user." });
+        }
+
+        const listings = listingsSnapshot.docs.map(doc => ({
+            listingId: doc.id,
+            ...doc.data()
+        }));
+
+        res.status(200).json(listings);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            message: 'Error retrieving listings',
+            error: error.message,
+        });
+    }
+};
+const deleteListing = async (req, res) => {
+    try {
+        const { listingId } = req.params;
+
+        const listingRef = firestore.collection('listings').doc(listingId);
+
+        //check exist
+        const listingDoc = await listingRef.get();
+
+        if (!listingDoc.exists) {
+            return res.status(404).json({ message: 'Listing not found' });
+        }
+
+        await listingRef.delete();
+
+        res.status(200).json({ message: 'Listing deleted successfully' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            message: 'Error deleting listing',
+            error: error.message,
+        });
+    }
+};
+const getSavedListings = async (req, res) => {
+    try {
+        const userId = req.user?.uid;
+
+        if (!userId) {
+            return res.status(401).json({ message: 'User not authenticated' });
+        }
+
+        const savedListingsSnapshot = await firestore
+            .collection('saved_listings')
+            .where('userId', '==', userId)
+            .get();
+
+        if (savedListingsSnapshot.empty) {
+            return res.status(404).json({ message: 'No saved listings found for this user' });
+        }
+
+        const listingIds = savedListingsSnapshot.docs.map(doc => doc.data().listingId);
+
+        const listingsSnapshot = await firestore
+            .collection('listings')
+            .where(admin.firestore.FieldPath.documentId(), 'in', listingIds)
+            .get();
+
+        if (listingsSnapshot.empty) {
+            return res.status(404).json({ message: 'No matching listings found' });
+        }
+
+        const listings = listingsSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+
+        res.status(200).json({
+            message: 'Saved listings retrieved successfully',
+            data: listings,
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            message: 'Error retrieving saved listings',
+            error: error.message,
+        });
+    }
+};
+
 module.exports = {
     addBoardingListing,
     getBoardingListings,
     getBoardingListingById,
     submitReview,
     saveListing,
+    deleteSavedListing,
+    getListingsByUserId,
+    deleteListing,
+    getSavedListings,
     upload
 };
