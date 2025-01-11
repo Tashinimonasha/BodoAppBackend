@@ -49,4 +49,8 @@ router.delete('/:listingId',verifyToken,boardingController.deleteListing);
 //get saved listings
 router.get('/saved/:userId',verifyToken,boardingController.getSavedListings)
 
+// Route to update an existing boarding listing (requires user to be logged in)
+router.put('/update-listing/:id', verifyToken, upload.array('images', 5), boardingController.updateBoardingListing);
+
+
 module.exports = router;

@@ -376,6 +376,85 @@ const getSavedListings = async (req, res) => {
         });
     }
 };
+const updateBoardingListing = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { title, description, type, price, district, location, phone } = req.body;
+        const userId = req.user.uid;
+        const images = req.files;
+        console.log(id)
+        if (!id) {
+            return res.status(400).json({ message: 'Listing ID is required' });
+        }
+
+        // Check if the listing exists and belongs to the user
+        const docRef = firestore.collection('listings').doc(id);
+        const doc = await docRef.get();
+
+        if (!doc.exists) {
+            return res.status(404).json({ message: 'Boarding listing not found' });
+        }
+
+        const listingData = doc.data();
+
+        if (listingData.userId !== userId) {
+            return res.status(403).json({ message: 'You are not authorized to update this listing' });
+        }
+
+        // Prepare data
+        const updatedData = {
+            title: title || listingData.title,
+            description: description || listingData.description,
+            type: type || listingData.type,
+            price: price || listingData.price,
+            district: district || listingData.district,
+            location: location || listingData.location,
+            phone: phone || listingData.phone,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+
+     //if images uploded
+        let imageUrls = [...listingData.images]; // Keep existing images by default
+
+        if (images && images.length > 0) {
+            const bucket = admin.storage().bucket();
+            const listingFolder = `listings/${id}`;
+
+            // Upload new images to Firebase Storage
+            for (let i = 0; i < images.length; i++) {
+                const file = images[i];
+                const fileName = `${listingFolder}/${Date.now()}-${file.originalname}`;
+                const fileRef = bucket.file(fileName);
+
+                // Upload file to Firebase Storage
+                await fileRef.save(file.buffer, {
+                    contentType: file.mimetype,
+                    public: true,
+                });
+
+                const fileUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+                imageUrls.push(fileUrl);
+            }
+        }
+
+        await docRef.update({ ...updatedData, images: imageUrls });
+
+        res.status(200).json({
+            message: 'Boarding listing updated successfully',
+            listingId: docRef.id,
+            data: {
+                ...updatedData,
+                images: imageUrls,
+            },
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            message: 'Error updating boarding listing',
+            error: error.message,
+        });
+    }
+};
 
 module.exports = {
     addBoardingListing,
@@ -387,5 +466,6 @@ module.exports = {
     getListingsByUserId,
     deleteListing,
     getSavedListings,
+    updateBoardingListing,
     upload
 };
