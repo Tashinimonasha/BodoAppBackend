@@ -84,7 +84,7 @@ const addBoardingListing = async (req, res) => {
 };
 const getBoardingListings = async (req, res) => {
     try {
-        const { district, priceOrder, location, limit = 10, page = 1 } = req.query;
+        const { district, priceOrder, location, limit = 100, page = 1 } = req.query;
         let query = firestore.collection('listings');
 
         // Filter by district
