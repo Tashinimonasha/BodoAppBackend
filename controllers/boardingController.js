@@ -40,6 +40,8 @@ const addBoardingListing = async (req, res) => {
             phone,
             userId,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            isAvailable: true,
+            isReleased: false,
         };
 
         const docRef = await firestore.collection('listings').add(listingData);
@@ -379,7 +381,7 @@ const getSavedListings = async (req, res) => {
 const updateBoardingListing = async (req, res) => {
     try {
         const { id } = req.params;
-        const { title, description, type, price, district, location, phone } = req.body;
+        const { title, description, type, price, district, location, phone,isAvailable,isReleased } = req.body;
         const userId = req.user.uid;
         const images = req.files;
         console.log(id)
@@ -411,6 +413,8 @@ const updateBoardingListing = async (req, res) => {
             location: location || listingData.location,
             phone: phone || listingData.phone,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            isAvailable: isAvailable !== undefined ? isAvailable : listingData.isAvailable,
+            isReleased: isReleased !== undefined ? isReleased : listingData.isReleased,
         };
 
      //if images uploded
