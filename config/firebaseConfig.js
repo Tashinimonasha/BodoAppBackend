@@ -1,5 +1,5 @@
 const admin = require('firebase-admin');
-const serviceAccount = require('../config/bodo-app-18921-firebase-adminsdk-kw0r5-474ba1ac7c.json');
+const serviceAccount = require('../config/bodo-app-18921-firebase-adminsdk-kw0r5-618c09b1ea.json');
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
