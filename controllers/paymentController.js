@@ -194,7 +194,6 @@ const getPaymentsByBoarding = async (req, res) => {
         const paymentsSnapshot = await firestore
             .collection('payments')
             .where('boardingId', '==', boardingId)
-            .orderBy('paidDate', 'desc')
             .get();
 
         if (paymentsSnapshot.empty) {
@@ -207,6 +206,13 @@ const getPaymentsByBoarding = async (req, res) => {
             id: doc.id,
             ...doc.data()
         }));
+
+        // Sort by paidDate in memory (descending)
+        payments.sort((a, b) => {
+            const dateA = a.paidDate?._seconds || 0;
+            const dateB = b.paidDate?._seconds || 0;
+            return dateB - dateA;
+        });
 
         res.status(200).json({
             message: 'Payments retrieved successfully',
