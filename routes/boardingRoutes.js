@@ -24,8 +24,11 @@ const upload = multer({
 router.post('/add-listing', verifyToken, upload.array('images', 5), boardingController.addBoardingListing);
 
 // get all boardings with pagination's and filters
-router.get('/get-listings', boardingController.getBoardingListings
-);
+router.get('/get-listings', boardingController.getBoardingListings);
+
+// Get all listings with all data (no filters)
+router.get('/get-all-listings', boardingController.getAllListings);
+
 // Get boarding listing by ID
 router.get('/get-listing/:id', boardingController.getBoardingListingById);
 
@@ -46,11 +49,25 @@ router.get('/user-listings/:userId',verifyToken,boardingController.getListingsBy
 //delete listing using listingId
 router.delete('/:listingId',verifyToken,boardingController.deleteListing);
 
+//delete boarding by id (no token required)
+router.delete('/delete-boarding/:boardingId', boardingController.deleteBoardingById);
+
 //get saved listings
 router.get('/saved/:userId',verifyToken,boardingController.getSavedListings)
 
 // Route to update an existing boarding listing (requires user to be logged in)
 router.put('/update-listing/:id', verifyToken, upload.array('images', 5), boardingController.updateBoardingListing);
 
+// Route to report a listing (requires user to be logged in)
+router.post('/report/:listingId', verifyToken, boardingController.reportListing);
+
+// Route to get all reports (admin/moderator access)
+router.get('/reports/list', verifyToken, boardingController.getReports);
+
+// Route to get a specific report by ID
+router.get('/reports/:reportId', verifyToken, boardingController.getReportById);
+
+// Route to update report status
+router.put('/reports/:reportId/status', verifyToken, boardingController.updateReportStatus);
 
 module.exports = router;
