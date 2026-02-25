@@ -61,4 +61,10 @@ router.put('/update-listing/:id', verifyToken, upload.array('images', 5), boardi
 // Route to report a listing (requires user to be logged in)
 router.post('/report/:listingId', verifyToken, boardingController.reportListing);
 
+// Route to get all reports (no token required)
+router.get('/reports/all', boardingController.getAllReports);
+
+// Route to delete a report (no token required)
+router.delete('/reports/:reportId', boardingController.deleteReport);
+
 module.exports = router;

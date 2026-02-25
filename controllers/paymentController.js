@@ -303,10 +303,142 @@ const getPaymentById = async (req, res) => {
     }
 };
 
+/**
+ * Toggle badge for a renter who paid on time (Boarding owner only)
+ */
+const toggleBadge = async (req, res) => {
+    try {
+        const { paymentId, badgeName } = req.body;
+        const ownerId = req.user.uid; // from token (boarding owner)
+
+        // Validate required fields
+        if (!paymentId || !badgeName) {
+            return res.status(400).json({ 
+                message: 'Payment ID and badge name are required' 
+            });
+        }
+
+        // Find payment
+        const paymentDoc = await firestore.collection('payments').doc(paymentId).get();
+
+        if (!paymentDoc.exists) {
+            return res.status(404).json({ 
+                message: 'Payment not found' 
+            });
+        }
+
+        const payment = paymentDoc.data();
+
+        // Verify that the logged-in user is the boarding owner
+        if (payment.ownerId !== ownerId) {
+            return res.status(403).json({ 
+                message: 'Only the boarding owner can award badges' 
+            });
+        }
+
+        // Check if badge already exists on payment
+        const badgeExists = payment.badges?.some(b => b.name === badgeName);
+
+        let updatedBadges;
+        let action;
+
+        if (badgeExists) {
+            // Remove badge
+            updatedBadges = payment.badges.filter(b => b.name !== badgeName);
+            action = 'removed';
+        } else {
+            // Add badge
+            updatedBadges = payment.badges || [];
+            updatedBadges.push({
+                name: badgeName,
+                awardedBy: ownerId,
+                awardedDate: admin.firestore.Timestamp.now()
+            });
+            action = 'awarded';
+        }
+
+        // Save payment with updated badges
+        await firestore.collection('payments').doc(paymentId).update({
+            badges: updatedBadges,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Also update renter's profile with badge history
+        const renterId = payment.paymentDoneBy;
+        const renterDoc = await firestore.collection('users').doc(renterId).get();
+        
+        if (renterDoc.exists) {
+            const renterData = renterDoc.data();
+            const renterBadges = renterData.badges || [];
+            
+            let updatedRenterBadges;
+            if (badgeExists) {
+                updatedRenterBadges = renterBadges.filter(b => b.name !== badgeName);
+            } else {
+                updatedRenterBadges = [
+                    ...renterBadges,
+                    {
+                        name: badgeName,
+                        awardedBy: ownerId,
+                        awardedDate: admin.firestore.Timestamp.now(),
+                        paymentId: paymentId
+                    }
+                ];
+            }
+
+            await firestore.collection('users').doc(renterId).update({
+                badges: updatedRenterBadges,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+
+            // Send email notification to renter if badge was awarded
+            const renterEmail = renterData.email;
+            if (action === 'awarded' && renterEmail) {
+                await transporter.sendMail({
+                    from: '"Bodo App Badges" <3treecrops2@gmail.com>',
+                    to: renterEmail,
+                    subject: 'Congratulations! You received a badge - Bodo App',
+                    html: `
+                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                            <h2 style="color: #FFD700;">🏅 Badge Awarded!</h2>
+                            <p>Dear Renter,</p>
+                            <p>Congratulations! You have been awarded a badge for making a payment on time.</p>
+                            <div style="background-color: #fffacd; padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #FFD700;">
+                                <h3 style="margin-top: 0; color: #333;">Badge Details:</h3>
+                                <p><strong>Badge Name:</strong> ${badgeName}</p>
+                                <p><strong>Awarded By:</strong> Your Boarding Owner</p>
+                                <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+                            </div>
+                            <p>This badge recognizes your reliability and on-time payment history. Keep it up!</p>
+                            <p>Thank you for using Bodo App!</p>
+                            <p style="color: #666; font-size: 12px;">If you have any questions, please contact us.</p>
+                        </div>
+                    `
+                });
+            }
+        }
+
+        res.json({
+            message: 'Badge toggled successfully',
+            data: {
+                paymentId,
+                badges: updatedBadges,
+                action: action
+            }
+        });
+    } catch (error) {
+        console.error('Error toggling badge:', error);
+        res.status(500).json({ 
+            message: error.message 
+        });
+    }
+};
+
 module.exports = {
     createPayment,
     getPaymentsByUser,
     getPaymentsByBoarding,
     getReceivedPayments,
-    getPaymentById
+    getPaymentById,
+    toggleBadge
 };

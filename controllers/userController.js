@@ -13,29 +13,66 @@ exports.getUserProfile = async (req, res) => {
     }
 };
 
-// Get All Users
+// Get All Users with Pagination Support
 exports.getAllUsers = async (req, res) => {
     try {
+        // Get pagination parameters from query
+        const limit = parseInt(req.query.limit) || 1000; // Default to 1000 (all users)
+        const offset = parseInt(req.query.offset) || 0;
+        const search = req.query.search || '';
+
         // Fetch all users from the 'users' collection
-        const snapshot = await firestore.collection('users').get();
+        let query = firestore.collection('users');
+
+        const snapshot = await query.get();
 
         if (snapshot.empty) {
             return res.status(404).json({
                 message: 'No users found',
                 total: 0,
-                data: []
+                data: [],
+                pagination: {
+                    limit,
+                    offset,
+                    totalPages: 0,
+                    currentPage: 1
+                }
             });
         }
 
-        const users = snapshot.docs.map(doc => ({
+        let users = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
         }));
 
+        // Filter by search term if provided
+        if (search) {
+            users = users.filter(user => 
+                (user.email && user.email.toLowerCase().includes(search.toLowerCase())) ||
+                (user.name && user.name.toLowerCase().includes(search.toLowerCase())) ||
+                (user.username && user.username.toLowerCase().includes(search.toLowerCase())) ||
+                (user.phone && user.phone.includes(search))
+            );
+        }
+
+        const totalUsers = users.length;
+        const totalPages = Math.ceil(totalUsers / limit);
+        const currentPage = Math.floor(offset / limit) + 1;
+
+        // Apply pagination
+        const paginatedUsers = users.slice(offset, offset + limit);
+
         res.status(200).json({
             message: 'All users retrieved successfully',
-            total: users.length,
-            data: users
+            total: totalUsers,
+            data: paginatedUsers,
+            pagination: {
+                limit,
+                offset,
+                totalPages,
+                currentPage,
+                hasMore: offset + limit < totalUsers
+            }
         });
     } catch (error) {
         console.error(error);

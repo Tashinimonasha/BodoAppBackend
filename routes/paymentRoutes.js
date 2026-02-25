@@ -6,11 +6,15 @@ const {
     getPaymentsByUser,
     getPaymentsByBoarding,
     getReceivedPayments,
-    getPaymentById
+    getPaymentById,
+    toggleBadge
 } = require('../controllers/paymentController');
 
 // Create a new payment (requires authentication)
 router.post('/create', verifyToken, createPayment);
+
+// Toggle badge for a renter (boarding owner only)
+router.post('/toggle-badge', verifyToken, toggleBadge);
 
 // Get all payments made by the logged-in user
 router.get('/my-payments', verifyToken, getPaymentsByUser);

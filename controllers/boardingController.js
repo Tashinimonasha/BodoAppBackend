@@ -639,6 +639,109 @@ const reportListing = async (req, res) => {
     }
 };
 
+// Get all reports
+const getAllReports = async (req, res) => {
+    try {
+        const reportsSnapshot = await firestore
+            .collection('reports')
+            .orderBy('createdAt', 'desc')
+            .get();
+
+        if (reportsSnapshot.empty) {
+            return res.status(200).json({
+                success: true,
+                message: 'No reports found',
+                data: []
+            });
+        }
+
+        const reports = [];
+        reportsSnapshot.forEach(doc => {
+            const reportData = doc.data();
+            
+            // Determine status badge
+            let statusBadge = 'pending';
+            if (reportData.status === 'reviewed') {
+                statusBadge = 'reviewed';
+            } else if (reportData.status === 'resolved') {
+                statusBadge = 'resolved';
+            } else if (reportData.status === 'dismissed') {
+                statusBadge = 'dismissed';
+            }
+
+            reports.push({
+                id: doc.id,
+                listingTitle: reportData.listingTitle || 'N/A',
+                reporterName: reportData.reportedByEmail || 'Anonymous',
+                reason: reportData.reportType || 'Not specified',
+                description: reportData.description || 'No description provided',
+                status: statusBadge,
+                // Additional details
+                listingId: reportData.listingId,
+                listingOwnerId: reportData.listingOwnerId,
+                reportedBy: reportData.reportedBy,
+                reportedByEmail: reportData.reportedByEmail,
+                contactEmail: reportData.contactEmail,
+                createdAt: reportData.createdAt,
+                updatedAt: reportData.updatedAt,
+            });
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'Reports retrieved successfully',
+            totalReports: reports.length,
+            data: reports
+        });
+    } catch (error) {
+        console.error('Get all reports error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'An error occurred while retrieving reports',
+            error: error.message,
+        });
+    }
+};
+
+// Delete a report
+const deleteReport = async (req, res) => {
+    try {
+        const { reportId } = req.params;
+
+        if (!reportId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Report ID is required'
+            });
+        }
+
+        const reportRef = firestore.collection('reports').doc(reportId);
+        const reportDoc = await reportRef.get();
+
+        if (!reportDoc.exists) {
+            return res.status(404).json({
+                success: false,
+                message: 'Report not found'
+            });
+        }
+
+        await reportRef.delete();
+
+        res.status(200).json({
+            success: true,
+            message: 'Report deleted successfully',
+            deletedId: reportId
+        });
+    } catch (error) {
+        console.error('Delete report error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'An error occurred while deleting the report',
+            error: error.message,
+        });
+    }
+};
+
 module.exports = {
     addBoardingListing,
     getBoardingListings,
@@ -653,5 +756,7 @@ module.exports = {
     getAllListings,
     deleteBoardingById,
     reportListing,
+    getAllReports,
+    deleteReport,
     upload
 };
