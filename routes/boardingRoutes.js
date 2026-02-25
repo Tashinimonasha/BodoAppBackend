@@ -61,13 +61,4 @@ router.put('/update-listing/:id', verifyToken, upload.array('images', 5), boardi
 // Route to report a listing (requires user to be logged in)
 router.post('/report/:listingId', verifyToken, boardingController.reportListing);
 
-// Route to get all reports (admin/moderator access)
-router.get('/reports/list', verifyToken, boardingController.getReports);
-
-// Route to get a specific report by ID
-router.get('/reports/:reportId', verifyToken, boardingController.getReportById);
-
-// Route to update report status
-router.put('/reports/:reportId/status', verifyToken, boardingController.updateReportStatus);
-
 module.exports = router;
